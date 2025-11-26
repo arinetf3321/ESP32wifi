@@ -1,0 +1,54 @@
+#include <Arduino.h>
+
+// Pin definitions
+const int blinkLedPin = 14;     // LED pin for blinking
+const int nirLedPin = 23;       // Pin for NIR LED
+const int photodiodePin = 34;   // Analog pin for photodiode input
+
+// Timing variables
+unsigned long pulseTime;
+unsigned long returnTime;
+unsigned long roundTripTime;
+
+void setup() {
+  // Set LED pins as output
+  pinMode(blinkLedPin, OUTPUT);  // Blinking LED
+  pinMode(nirLedPin, OUTPUT);    // NIR LED
+  
+  // Initialize photodiode pin as input
+  pinMode(photodiodePin, INPUT);
+  
+  Serial.begin(115200);  // Start serial communication for debugging
+}
+
+void loop() {
+  // Blink the LED on pin 14 (1-second interval)
+  digitalWrite(blinkLedPin, HIGH);  // Turn on LED
+  delay(2000);                      // Wait for 2 seconds
+  digitalWrite(blinkLedPin, LOW);   // Turn off LED
+  delay(500);                       // Wait for 0.5 seconds
+
+  // Emit a pulse of light from the NIR LED
+  digitalWrite(nirLedPin, HIGH);  // Turn on NIR LED
+  delayMicroseconds(10);          // Pulse duration (10 microseconds)
+  digitalWrite(nirLedPin, LOW);   // Turn off NIR LED
+
+  // Start measuring the time it takes for light to return
+  pulseTime = micros();  // Record the time when the pulse is emitted
+
+  // Wait for the photodiode to detect the reflected light
+  while (analogRead(photodiodePin) < 100) {  // Threshold to detect light
+    // Keep checking until a valid return signal is detected
+  }
+
+  returnTime = micros();  // Time when the reflected light is detected
+
+  // Calculate round-trip time of the photon
+  roundTripTime = returnTime - pulseTime;
+  
+  // Output the round-trip time (for example, to Serial Monitor)
+  Serial.print("Round-trip time: ");
+  Serial.println(roundTripTime);
+  
+  delay(500);  // Delay between pulses
+}
