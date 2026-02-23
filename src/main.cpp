@@ -63,6 +63,10 @@ void loop() {
       lcd.print("No reflection");
       lcd.setCursor(0, 1);
       lcd.print("within 1s ⚠");
+	  
+	  // Mirror to Serial Monitor 
+	  Serial.printf("LCD: No reflection within 1s ⚠\n");
+	  
       delay(1500);
       return;
     }
@@ -73,8 +77,8 @@ void loop() {
     returnTime = micros();
     roundTripTime = returnTime - pulseTime;
 
-    // Calculate optical density (OD)
-    float I0 = 1023.0;  
+    // Calculate optical density (OD,1023.0)
+    float I0 = 4095.0;  
     float I = (float)photodiodeValue;  
     float OD = log(I0 / I);
 
@@ -109,7 +113,10 @@ void loop() {
         lcd.print(OD, 2);
         lcd.print(" PWM:");
         lcd.print(dutyCycle);
-
+       
+	    // Mirror to Serial Monitor 
+		Serial.printf("LCD: Sensor %d_%d | Volts: %.2f | PWM: %d\n", x, y, OD, dutyCycle);
+		
         delay(500); // adjust scroll speed
       }
     }
