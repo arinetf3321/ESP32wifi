@@ -1,7 +1,14 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+
+// ================== WIFI SETTINGS ==================
+const char* ssid = "ESP32_Server";
+const char* password = "12345678";
+
+WiFiServer server(5000);   // TCP port
 // LCD setup
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Adjust address if needed
 
@@ -34,6 +41,13 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("System started...");
+  
+    // ---- WiFi Setup ----
+  WiFi.softAP(ssid, password);
+  server.begin();
+
+  Serial.print("WiFi IP Address: ");
+  Serial.println(WiFi.softAPIP());
 
   // Initialize I2C on custom pins
   Wire.begin(25, 26);
@@ -44,6 +58,7 @@ void setup() {
 }
 
 void loop() {
+  WiFiClient client = server.available();
   // Blink status LED
   digitalWrite(blinkLedPin, HIGH);
   delay(2000);
@@ -116,6 +131,16 @@ void loop() {
        
 	    // Mirror to Serial Monitor 
 		Serial.printf("LCD: Sensor %d_%d | Volts: %.2f | PWM: %d\n", x, y, OD, dutyCycle);
+		
+		// ---- SEND DATA OVER WIFI ----
+        if (client) {
+          if (client.connected()) {
+            client.print("OD:");
+            client.print(OD, 4);
+            client.print(",PWM:");
+            client.println(dutyCycle);
+          }
+        }
 		
         delay(500); // adjust scroll speed
       }
