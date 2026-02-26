@@ -1,49 +1,77 @@
-from flask import Flask, render_template
-import serial
+from flask import Flask, render_template_string
+import socket
 import threading
-import time
-import queue
 
-# Create Flask app
 app = Flask(__name__)
 
-# Serial communication setup (adjust the port as per your system)
-ser = serial.Serial('COM4', 115200)  # Update with the correct port for your system
+# ESP32 connection details
+ESP32_IP = "192.168.0.100"  # Change to your ESP32 IP
+ESP32_PORT = 5000
 
-# Queue to safely pass data from the serial reading thread to the main app
-data_queue = queue.Queue()
+# Shared variables for sensor data and lock for thread-safety
+latest_od = 0.0
+latest_pwm = 0
+latest_raw = ""   # <-- store raw ESP32 output
+data_lock = threading.Lock()
 
-# Function to read data from Arduino and update global variables
-def read_data():
-    while True:
-        if ser.in_waiting > 0:
-            line = ser.readline().decode('utf-8').strip()
-            # Parse data from Arduino (assuming the Arduino sends data)
-            if line:
-                data_queue.put(line)  # Put data into the queue for Flask to access
-        time.sleep(0.1)
+# HTML template
+html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Brain oxygen flow detector data</title>
+    <meta http-equiv="refresh" content="2"> <!-- auto-refresh every 2s -->
+</head>
+<body>
+    <h1>Brain oxygen flow detector data</h1>
+    <p><strong>Brain oxygen flow detector Output:</strong> {{ raw }}</p>
+    <p><strong>Volts (V):</strong> {{ od }}</p>
+    <p><strong>PWM Duty Cycle:</strong> {{ pwm }}</p>
+</body>
+</html>
+"""
 
-# Start the data reading in a separate thread
-data_thread = threading.Thread(target=read_data)
-data_thread.daemon = True
-data_thread.start()
-
-# Route to display the dashboard
-@app.route('/')
+@app.route("/")
 def index():
-    # Retrieve data from the queue (if available)
-    sensor_value, voltage, nir_led_state = "Not received", "Not received", "Not received"
-    if not data_queue.empty():
-        data = data_queue.get()
-        # Assuming your data looks like "Sensor Value: [value] Voltage: [voltage] NIR LED Pin State: [state]"
-        parts = data.split("\t")
-        if len(parts) >= 3:
-            sensor_value = parts[0].split(":")[1].strip()
-            voltage = parts[1].split(":")[1].strip()
-            nir_led_state = parts[2].split(":")[1].strip()
+    with data_lock:
+        od_value = latest_od
+        pwm_value = latest_pwm
+        raw_value = latest_raw
+    return render_template_string(html_template, od=od_value, pwm=pwm_value)
 
-    return render_template('dashboard.html', sensor_value=sensor_value, voltage=voltage, nir_led_state=nir_led_state)
+# --- TCP listener function ---
+def tcp_listener():
+    global latest_od, latest_pwm, latest_raw
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((ESP32_IP, ESP32_PORT))
+    while True:
+        data = client_socket.recv(1024).decode().strip()
+        if not data:
+            continue
 
-# Run the Flask app
+        # Print raw ESP32 output to console 
+        #print("Raw ESP32 output:", data)
+        
+        # Save raw output for display
+        with data_lock:
+            latest_raw = data
+
+        if not data.startswith("OD:") or ",PWM:" not in data:
+            print("Skipping malformed line:", data)
+            continue
+        try:
+            od_value = float(data.split(",")[0].split(":")[1])
+            pwm_value = int(data.split(",")[1].split(":")[1])
+            with data_lock:
+                latest_od = od_value
+                latest_pwm = pwm_value
+            # Print parsed values to console 
+            print(f"Parsed values -> OD: {latest_od}, PWM: {latest_pwm}")   
+                
+        except Exception as e:
+            print("Parse error:", e, "Line:", data)
+
+# --- Main entry point ---
 if __name__ == "__main__":
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    threading.Thread(target=tcp_listener, daemon=True).start()
+    app.run(host="0.0.0.0", port=8080, debug=True)

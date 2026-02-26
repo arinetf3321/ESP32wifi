@@ -1,14 +1,19 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WebServer.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-
-
+ 
 // ================== WIFI SETTINGS ==================
-const char* ssid = "ESP32_Server";
-const char* password = "12345678";
+//const char* ssid = "ESP32_Server";
+//const char* password = "12345678";
+const char* ssid = "VIP Authur 2"; 
+const char* password = "0774560547";
 
-WiFiServer server(5000);   // TCP port
+// Initialize servers
+WiFiServer tcpServer(5000);      // For Python client
+WebServer httpServer(80);        // For the browser
+
 // LCD setup
 LiquidCrystal_I2C lcd(0x27, 16, 4);  // Adjust address if needed
 
@@ -22,6 +27,9 @@ const int pwmChannel = 0;       // PWM channel
 const int pwmFreq = 5000;       // 5 kHz frequency
 const int pwmResolution = 8;    // 8-bit resolution (0–255 duty)
 
+float OD = 0.0;
+int dutyCycle = 0;
+
 // Timing variables
 unsigned long pulseTime;
 unsigned long returnTime;
@@ -30,6 +38,17 @@ unsigned long roundTripTime;
 // Number of sensor positions (10x10 grid)
 const int gridSize = 10;
 int sensorGrid[gridSize][gridSize];  // A 2D array to represent sensor positions
+
+// Function to serve the root page with dynamic values
+void handleRoot() {
+  // Respond with sensor data when accessed
+  String htmlContent = "<html><body>"; 
+  htmlContent += "<h1>ESP32 Sensor Data</h1>"; 
+  htmlContent += "<p><strong>Optical Density (OD): </strong>" + String(OD, 4) + "</p>"; 
+  htmlContent += "<p><strong>PWM Duty Cycle: </strong>" + String(dutyCycle) + "</p>"; 
+  htmlContent += "</body></html>"; 
+  httpServer.send(200, "text/html", htmlContent);
+}
 
 void setup() {
   pinMode(blinkLedPin, OUTPUT);
@@ -42,12 +61,26 @@ void setup() {
   Serial.begin(115200);
   Serial.println("System started...");
   
-    // ---- WiFi Setup ----
-  WiFi.softAP(ssid, password);
-  server.begin();
-
-  Serial.print("WiFi IP Address: ");
-  Serial.println(WiFi.softAPIP());
+  // ---- WiFi Setup ----
+  WiFi.begin(ssid, password); 
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) { 
+    Serial.print(".");
+    delay(500);   
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+  Serial.println("Failed to connect!");
+  } else {
+  Serial.println("\nConnected!"); 
+  Serial.print("Connected to SSID: "); 
+  Serial.println(WiFi.SSID());
+  Serial.print("ESP32 IP Address: "); 
+  Serial.println(WiFi.localIP()); 
+  tcpServer.begin();  // Start TCP server for Python client
+  httpServer.on("/", handleRoot);  // HTTP server root
+  httpServer.begin();  // Start WebServer for browser
+  Serial.println("Server started on port 5000");
+  }
 
   // Initialize I2C on custom pins
   Wire.begin(25, 26);
@@ -57,8 +90,8 @@ void setup() {
   lcd.backlight();
 }
 
+
 void loop() {
-  WiFiClient client = server.available();
   // Blink status LED
   digitalWrite(blinkLedPin, HIGH);
   delay(2000);
@@ -95,12 +128,22 @@ void loop() {
     // Calculate optical density (OD,1023.0)
     float I0 = 4095.0;  
     float I = (float)photodiodeValue;  
-    float OD = log(I0 / I);
+    OD = log(I0 / I);
 
     // Map OD to PWM duty cycle (scale 0.0–1.0 OD → 0–255)
-    int dutyCycle = constrain((int)(OD * 255), 0, 255);
+    dutyCycle = constrain((int)(OD * 255), 0, 255);
     ledcWrite(pwmChannel, dutyCycle);
-
+	
+	// --- TCP Client ---
+    WiFiClient tcpClient = tcpServer.available();
+    if (tcpClient && tcpClient.connected()) {
+      //tcpClient.print("OD:");
+      //tcpClient.print(OD, 4);
+      //tcpClient.print(",PWM:");
+      //tcpClient.println(dutyCycle);
+	  tcpClient.printf("OD:%.4f,PWM:%d\n", OD, dutyCycle);
+      tcpClient.stop();
+    }
     // Print grid sensor values
     for (int x = 0; x < gridSize; x++) {
       for (int y = 0; y < gridSize; y++) {
@@ -133,12 +176,14 @@ void loop() {
 		Serial.printf("LCD: Sensor %d_%d | Volts: %.2f | PWM: %d\n", x, y, OD, dutyCycle);
 		
 		// ---- SEND DATA OVER WIFI ----
-        if (client) {
-          if (client.connected()) {
-            client.print("OD:");
-            client.print(OD, 4);
-            client.print(",PWM:");
-            client.println(dutyCycle);
+        if (tcpClient) {
+          if (tcpClient.connected()) {
+            tcpClient.print("Volts:");
+            tcpClient.print(OD, 4);
+            tcpClient.print(",PWM:");
+            tcpClient.println(dutyCycle);
+			
+
           }
         }
 		
@@ -146,6 +191,6 @@ void loop() {
       }
     }
   }
-
+  httpServer.handleClient();  // Handle incoming HTTP requests (from browser)
   delay(500);
 }

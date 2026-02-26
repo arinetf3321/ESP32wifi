@@ -1,31 +1,30 @@
-from flask import Flask, render_template_string
-import serial, threading
+from flask import Flask, render_template
+import socket, threading
 
 app = Flask(__name__)
-ser = serial.Serial('COM4', 115200)
+
+# Replace with your ESP32's IP from Serial Monitor
+ESP32_HOST = "192.168.0.111"  # example, adjust to your ESP32 IP
+ESP32_PORT = 5000
 
 latest_output = ""
 
-def read_serial():
+def read_socket():
     global latest_output
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((ESP32_HOST, ESP32_PORT))
     while True:
-        line = ser.readline().decode('utf-8').strip()
-        latest_output = line
+        data = s.recv(1024)
+        if not data:
+            break
+        latest_output = data.decode("utf-8").strip()
 
-# Run serial reading in background thread
-threading.Thread(target=read_serial, daemon=True).start()
+# Run socket reading in background thread
+threading.Thread(target=read_socket, daemon=True).start()
 
 @app.route("/")
 def index():
-    return render_template_string("""
-        <html>
-        <head><title>ESP32 Monitor</title></head>
-        <body>
-            <h1>ESP32 Output</h1>
-            <pre>{{output}}</pre>
-        </body>
-        </html>
-    """, output=latest_output)
+    return render_template("index.html", output=latest_output)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=8080)  # Flask runs on 8080, ESP32 still on 5000
