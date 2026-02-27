@@ -5,10 +5,15 @@
 #include <LiquidCrystal_I2C.h>
  
 // ================== WIFI SETTINGS ==================
-//const char* ssid = "ESP32_Server";
-//const char* password = "12345678";
 const char* ssid = "VIP Authur 2"; 
 const char* password = "0774560547";
+
+// Define static IP configuration (adjust to your Wi-Fi subnet)
+IPAddress local_IP(192, 168, 0, 120);   // <-- pick unused IP in 192.168.0.x
+IPAddress gateway(192, 168, 0, 1);      // <-- your Wi-Fi router
+IPAddress subnet(255, 255, 255, 0);  // <-- typical subnet mask
+IPAddress primaryDNS(8, 8, 8, 8);    // optional
+IPAddress secondaryDNS(8, 8, 4, 4);  // optional
 
 // Initialize servers
 WiFiServer tcpServer(5000);      // For Python client
@@ -62,6 +67,10 @@ void setup() {
   Serial.println("System started...");
   
   // ---- WiFi Setup ----
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("⚠ Static IP Failed to configure");
+  }
+  
   WiFi.begin(ssid, password); 
   unsigned long startAttemptTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) { 
@@ -80,6 +89,7 @@ void setup() {
   httpServer.on("/", handleRoot);  // HTTP server root
   httpServer.begin();  // Start WebServer for browser
   Serial.println("Server started on port 5000");
+  Serial.println("HTTP server started on port 80");
   }
 
   // Initialize I2C on custom pins
@@ -142,7 +152,7 @@ void loop() {
       //tcpClient.print(",PWM:");
       //tcpClient.println(dutyCycle);
 	  tcpClient.printf("OD:%.4f,PWM:%d\n", OD, dutyCycle);
-      tcpClient.stop();
+      //tcpClient.stop();
     }
     // Print grid sensor values
     for (int x = 0; x < gridSize; x++) {

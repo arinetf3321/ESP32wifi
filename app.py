@@ -5,7 +5,7 @@ import threading
 app = Flask(__name__)
 
 # ESP32 connection details
-ESP32_IP = "192.168.0.100"  # Change to your ESP32 IP
+ESP32_IP = "192.168.0.120"  # Change to your ESP32 IP
 ESP32_PORT = 5000
 
 # Shared variables for sensor data and lock for thread-safety
@@ -50,7 +50,7 @@ def tcp_listener():
             continue
 
         # Print raw ESP32 output to console 
-        #print("Raw ESP32 output:", data)
+        print("Raw ESP32 output:", data)
         
         # Save raw output for display
         with data_lock:
@@ -74,4 +74,4 @@ def tcp_listener():
 # --- Main entry point ---
 if __name__ == "__main__":
     threading.Thread(target=tcp_listener, daemon=True).start()
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="192.168.0.110", port=8080, debug=True)

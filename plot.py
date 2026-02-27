@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import socket
 
 # Define ESP32 IP and Port
-ESP32_IP = "192.168.0.100"  # Replace with your ESP32 IP address
+ESP32_IP = "192.168.0.120"  # Replace with your ESP32 IP address
 ESP32_PORT = 5000  # The port number to match with the ESP32 Wi-Fi server
 
 # Set up the client socket
