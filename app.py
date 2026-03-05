@@ -5,7 +5,7 @@ import threading
 app = Flask(__name__)
 
 # ESP32 connection details
-ESP32_IP = "192.168.0.120"  # Change to your ESP32 IP
+ESP32_IP = "192.168.0.121"  # Change to your ESP32 IP
 ESP32_PORT = 5000
 
 # Shared variables for sensor data and lock for thread-safety
@@ -44,34 +44,46 @@ def tcp_listener():
     global latest_od, latest_pwm, latest_raw
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((ESP32_IP, ESP32_PORT))
+    buffer = ""
+
     while True:
-        data = client_socket.recv(1024).decode().strip()
-        if not data:
-            continue
+        # Append new data to buffer
+        buffer += client_socket.recv(1024).decode()
 
-        # Print raw ESP32 output to console 
-        print("Raw ESP32 output:", data)
-        
-        # Save raw output for display
-        with data_lock:
-            latest_raw = data
+        # Process complete lines
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            line = line.strip()
+            if not line:
+                continue
 
-        if not data.startswith("OD:") or ",PWM:" not in data:
-            print("Skipping malformed line:", data)
-            continue
-        try:
-            od_value = float(data.split(",")[0].split(":")[1])
-            pwm_value = int(data.split(",")[1].split(":")[1])
+            # Print raw ESP32 output
+            print("Raw ESP32 output:", line)
+
+            # Save raw output for display
             with data_lock:
-                latest_od = od_value
-                latest_pwm = pwm_value
-            # Print parsed values to console 
-            print(f"Parsed values -> OD: {latest_od}, PWM: {latest_pwm}")   
-                
-        except Exception as e:
-            print("Parse error:", e, "Line:", data)
+                latest_raw = line
+
+            # Validate format
+            if not (line.startswith("Volts:") and ",PWM:" in line):
+                print("Skipping malformed line:", line)
+                continue
+
+            try:
+                # Parse clean values
+                od_value = float(line.split(",")[0].split(":")[1])
+                pwm_value = int(line.split(",")[1].split(":")[1])
+
+                # Update shared variables
+                with data_lock:
+                    latest_od = od_value
+                    latest_pwm = pwm_value
+
+                print(f"Parsed values -> OD: {latest_od}, PWM: {latest_pwm}")
+            except Exception as e:
+                print("Parse error:", e, "Line:", line)
 
 # --- Main entry point ---
 if __name__ == "__main__":
     threading.Thread(target=tcp_listener, daemon=True).start()
-    app.run(host="192.168.0.110", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)

@@ -9,7 +9,7 @@ const char* ssid = "VIP Authur 2";
 const char* password = "0774560547";
 
 // Define static IP configuration (adjust to your Wi-Fi subnet)
-IPAddress local_IP(192, 168, 0, 120);   // <-- pick unused IP in 192.168.0.x
+IPAddress local_IP(192, 168, 0, 121);  // <-- pick unused IP in 192.168.0.x
 IPAddress gateway(192, 168, 0, 1);      // <-- your Wi-Fi router
 IPAddress subnet(255, 255, 255, 0);  // <-- typical subnet mask
 IPAddress primaryDNS(8, 8, 8, 8);    // optional
@@ -144,15 +144,14 @@ void loop() {
     dutyCycle = constrain((int)(OD * 255), 0, 255);
     ledcWrite(pwmChannel, dutyCycle);
 	
+	// Convert to percentage
+    float dutyPercent = (dutyCycle / 255.0) * 100.0;
+	
 	// --- TCP Client ---
     WiFiClient tcpClient = tcpServer.available();
     if (tcpClient && tcpClient.connected()) {
-      //tcpClient.print("OD:");
-      //tcpClient.print(OD, 4);
-      //tcpClient.print(",PWM:");
-      //tcpClient.println(dutyCycle);
 	  tcpClient.printf("OD:%.4f,PWM:%d\n", OD, dutyCycle);
-      //tcpClient.stop();
+      
     }
     // Print grid sensor values
     for (int x = 0; x < gridSize; x++) {
@@ -167,6 +166,10 @@ void loop() {
         Serial.print("V");
         Serial.print(", PWM=");
         Serial.println(dutyCycle);
+		
+		//percent
+		Serial.print(dutyPercent, 1); // 1 decimal place
+        Serial.println("%");
 
         // LCD output (scroll vertically)
         lcd.clear();
@@ -181,18 +184,23 @@ void loop() {
         lcd.print(OD, 2);
         lcd.print(" PWM:");
         lcd.print(dutyCycle);
+		
+		//percent
+		//lcd.print(dutyPercent, 1); // 1 decimal place
+		//lcd.print("%");
+		lcd.print(String(dutyPercent, 1) + "%");
        
 	    // Mirror to Serial Monitor 
 		Serial.printf("LCD: Sensor %d_%d | Volts: %.2f | PWM: %d\n", x, y, OD, dutyCycle);
 		
+		// percent
+		Serial.printf("%.1f%%\n", dutyPercent, 1); // 1 decimal place
+		
+		
 		// ---- SEND DATA OVER WIFI ----
         if (tcpClient) {
           if (tcpClient.connected()) {
-            tcpClient.print("Volts:");
-            tcpClient.print(OD, 4);
-            tcpClient.print(",PWM:");
-            tcpClient.println(dutyCycle);
-			
+			tcpClient.println(String("Volts: ") + String(OD, 4) + ",PWM:" + String(dutyCycle));			
 
           }
         }
