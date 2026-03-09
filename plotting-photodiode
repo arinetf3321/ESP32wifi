@@ -1,0 +1,133 @@
+import socket
+import matplotlib.pyplot as plt
+from collections import deque
+import time
+import numpy as np
+from scipy.signal import find_peaks
+
+# === ESP32 TCP Settings ===
+ESP32_IP = "192.168.0.121"  # Replace with your ESP32 IP
+ESP32_PORT = 5000
+
+# === Sliding window settings ===
+window_size = 500          # number of points in sliding window
+peak_prominence = 1000     # adjust based on your NIR LED signal amplitude
+peak_count_window = 1.0    # seconds for peaks/sec calculation
+peak_flash_duration = 0.1  # seconds to highlight a peak
+
+# === Data storage ===
+adc_window = deque(maxlen=window_size)
+time_window = deque(maxlen=window_size)
+
+adc_full = []
+time_full = []
+
+peak_times_history = deque()
+recent_peak_flash_times = deque()
+
+# Connect to ESP32 TCP server
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((ESP32_IP, ESP32_PORT))
+client_socket.settimeout(2)
+
+start_time = time.time()
+
+# Set up plots
+plt.ion()
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+
+# Sliding window plot
+line_window, = ax1.plot([], [], 'b-', label='ADC')
+line_peaks, = ax1.plot([], [], 'ro', label='Peaks')
+text_rate = ax1.text(0.02, 0.95, '', transform=ax1.transAxes,
+                     fontsize=12, color='green', bbox=dict(facecolor='white', alpha=0.5))
+ax1.set_title("Sliding Window (Live Heartbeat View)")
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("ADC Reading")
+ax1.set_ylim(0, 4095)
+ax1.grid(True)
+ax1.legend()
+
+# Full waveform plot
+line_full, = ax2.plot([], [], 'r-', label='ADC Full')
+ax2.set_title("Full Waveform")
+ax2.set_xlabel("Time (s)")
+ax2.set_ylabel("ADC Reading")
+ax2.set_ylim(0, 4095)
+ax2.grid(True)
+ax2.legend()
+
+try:
+    while True:
+        try:
+            data = client_socket.recv(1024).decode().strip()
+        except socket.timeout:
+            continue
+
+        if not data:
+            continue
+
+        for line_data in data.split('\n'):
+            try:
+                adc_value = int(line_data.strip())
+            except ValueError:
+                continue
+
+            current_time = time.time() - start_time
+
+            adc_window.append(adc_value)
+            time_window.append(current_time)
+            adc_full.append(adc_value)
+            time_full.append(current_time)
+
+        # Convert sliding window to numpy arrays
+        adc_array = np.array(adc_window)
+        time_array = np.array(time_window)
+
+        # Detect peaks
+        peaks, _ = find_peaks(adc_array, prominence=peak_prominence)
+        peak_times = time_array[peaks]
+        peak_values = adc_array[peaks]
+
+        # Record peaks for counting
+        for pt in peak_times:
+            peak_times_history.append(pt)
+            recent_peak_flash_times.append(pt)
+
+        # Remove old peaks for counting
+        current_time_full = time.time() - start_time
+        while peak_times_history and peak_times_history[0] < current_time_full - peak_count_window:
+            peak_times_history.popleft()
+        peaks_per_second = len(peak_times_history) / peak_count_window
+
+        # Remove expired flashes for coloring
+        recent_peak_flash_times = deque([t for t in recent_peak_flash_times if t > current_time_full - peak_flash_duration])
+
+        # Build color array for heartbeat effect
+        colors = ['red' if t in recent_peak_flash_times else 'blue' for t in time_array]
+
+        # Update sliding window plot
+        line_window.set_xdata(time_window)
+        line_window.set_ydata(adc_window)
+        line_peaks.set_xdata(peak_times)
+        line_peaks.set_ydata(peak_values)
+        text_rate.set_text(f"Peaks/sec: {peaks_per_second:.1f}")
+
+        # Update full waveform plot
+        line_full.set_xdata(time_full)
+        line_full.set_ydata(adc_full)
+
+        ax1.relim()
+        ax1.autoscale_view()
+        ax2.relim()
+        ax2.autoscale_view()
+
+        plt.pause(0.01)
+
+except KeyboardInterrupt:
+    print("Stopped by user")
+
+finally:
+    client_socket.close()
+    plt.ioff()
+    plt.show()

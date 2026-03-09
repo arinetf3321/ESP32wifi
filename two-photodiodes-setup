@@ -1,0 +1,121 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ================== WIFI SETTINGS ==================
+const char* ssid = "VIP Authur 2"; 
+const char* password = "0774560547";
+
+IPAddress local_IP(192, 168, 0, 121);
+IPAddress gateway(192, 168, 0, 1);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress primaryDNS(8, 8, 8, 8);
+IPAddress secondaryDNS(8, 8, 4, 4);
+
+// Initialize servers
+WiFiServer tcpServer(5000);
+WebServer httpServer(80);
+
+// LCD setup
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+
+// Pin definitions
+const int blinkLedPin = 14;
+const int nirLedPin = 23;
+const int redLedPin = 22;
+
+const int photodiodeNIRPin = 34;
+const int photodiodeRedPin = 35;  // Second photodiode for Red LED
+
+// PWM setup for NIR LED
+const int pwmChannel = 0;
+const int pwmFreq = 5000;
+const int pwmResolution = 8;
+
+float OD_NIR = 0.0;
+float OD_Red = 0.0;
+int dutyCycle = 0;
+
+// Baseline intensity (max ADC)
+const float I0_NIR = 4095.0;
+const float I0_Red = 4095.0;
+
+void setup() {
+  pinMode(blinkLedPin, OUTPUT);
+  pinMode(nirLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(photodiodeNIRPin, INPUT);
+  pinMode(photodiodeRedPin, INPUT);
+
+  // PWM setup for NIR LED
+  ledcSetup(pwmChannel, pwmFreq, pwmResolution);
+  ledcAttachPin(nirLedPin, pwmChannel);
+
+  Serial.begin(115200);
+  Serial.println("System started...");
+
+  // WiFi
+  WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS);
+  WiFi.begin(ssid, password);
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) {
+    Serial.print(".");
+    delay(500);
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected!");
+    Serial.print("ESP32 IP: "); Serial.println(WiFi.localIP());
+    tcpServer.begin();
+    httpServer.begin();
+  } else {
+    Serial.println("Failed to connect WiFi!");
+  }
+
+  // LCD init
+  Wire.begin(25, 26);
+  lcd.init();
+  lcd.backlight();
+}
+
+void loop() {
+  // --- Blink status LED ---
+  digitalWrite(blinkLedPin, HIGH);
+  delay(200);
+  digitalWrite(blinkLedPin, LOW);
+
+  // --- Turn on LEDs ---
+  digitalWrite(nirLedPin, HIGH);   // NIR LED ON
+  digitalWrite(redLedPin, HIGH);   // Red LED ON
+  delay(5); // small stabilization delay
+
+  // --- Read photodiodes ---
+  int photodiodeNIR = analogRead(photodiodeNIRPin);
+  int photodiodeRed = analogRead(photodiodeRedPin);
+
+  // --- Calculate OD for each ---
+  OD_NIR = log(I0_NIR / (float)photodiodeNIR);
+  OD_Red = log(I0_Red / (float)photodiodeRed);
+
+  // --- Map OD_NIR to PWM for NIR LED feedback ---
+  dutyCycle = constrain((int)(OD_NIR * 255), 0, 255);
+  ledcWrite(pwmChannel, dutyCycle);
+
+  // --- Send data over TCP ---
+  WiFiClient tcpClient = tcpServer.available();
+  if (tcpClient && tcpClient.connected()) {
+    tcpClient.printf("OD_NIR:%.4f,OD_Red:%.4f\n", OD_NIR, OD_Red);
+  }
+
+  // --- Print to Serial & LCD ---
+  Serial.printf("OD_NIR: %.4f, OD_Red: %.4f, PWM: %d\n", OD_NIR, OD_Red, dutyCycle);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.printf("OD_NIR: %.2f", OD_NIR);
+  lcd.setCursor(0, 1);
+  lcd.printf("OD_Red: %.2f", OD_Red);
+
+  delay(200); // sampling interval
+  httpServer.handleClient();
+}

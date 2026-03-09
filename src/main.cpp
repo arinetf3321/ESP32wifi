@@ -146,11 +146,14 @@ void loop() {
 	
 	// Convert to percentage
     float dutyPercent = (dutyCycle / 255.0) * 100.0;
+	//float dutyPercent = (OD / maxOD) * 100.0;
+    if (dutyPercent > 100.0) dutyPercent = 100.0;
 	
 	// --- TCP Client ---
     WiFiClient tcpClient = tcpServer.available();
     if (tcpClient && tcpClient.connected()) {
 	  tcpClient.printf("OD:%.4f,PWM:%d\n", OD, dutyCycle);
+	  tcpClient.printf("%d\n", photodiodeValue); // send as a line
       
     }
     // Print grid sensor values
@@ -195,12 +198,14 @@ void loop() {
 		
 		// percent
 		Serial.printf("%.1f%%\n", dutyPercent, 1); // 1 decimal place
+		Serial.printf("%d\n", photodiodeValue);
 		
 		
 		// ---- SEND DATA OVER WIFI ----
         if (tcpClient) {
           if (tcpClient.connected()) {
-			tcpClient.println(String("Volts: ") + String(OD, 4) + ",PWM:" + String(dutyCycle));			
+			tcpClient.println(String("Volts: ") + String(OD, 4) + ",PWM:" + String(dutyCycle));	
+            tcpClient.println(String(photodiodeValue)); // send as a line			
 
           }
         }
