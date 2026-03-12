@@ -32,7 +32,7 @@ h1 {
     left: 0;
     z-index: 2000;
 }
-*/
+
 /* Header section */
 .site-header {
     width: 100%;
@@ -102,7 +102,7 @@ h1 {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border-radius: 20px;
-    padding: 30px 50px;
+    padding: 70px 50px 30px 50px;
     text-align: center;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     width: 100%;
@@ -212,7 +212,7 @@ footer {
     overflow-y: auto;
 }
 .side-menu h3 {
-    margin-top: 0;
+    margin-top: 80px;
     margin-bottom: 15px;
     font-size: 1.2rem;
     border-bottom: 1px solid rgba(255,255,255,0.3);
