@@ -1,0 +1,288 @@
+/* Global styles */
+html {
+    scroll-padding-top: 120px; 
+}
+body {
+    font-family: 'Roboto', sans-serif; /* Updated font */
+    background: linear-gradient(135deg, #2193b0, #6dd5ed); /* Smoother diagonal gradient */
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    color: #fff;
+}
+
+h1 {
+    margin-top: 40px;
+    font-size: 2.5rem;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+}
+
+/* Header section */
+.site-header {
+    width: 100%;
+    padding: 30px 0; /* Adjust padding for header */
+    background: #2193b0; /* Solid background color matching the image */
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+}
+
+/* Header section */
+.site-header {
+    width: 100%;
+    padding: 30px 0;
+    background: #2193b0;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+}
+/* Header title */
+.site-header h1 {
+    margin: 0;
+    font-size: 3rem; /* Increased font size for visibility */
+    font-weight: 700;
+    color: white;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); /* Add shadow for better readability */
+}
+
+
+/* Tagline for header */
+.site-header .tagline {
+    margin-top: 5px;
+    font-size: 1.5rem;
+    color: #ffd700; /* Yellow color for the tagline */
+    font-weight: 400;
+}
+
+/* Navigation Bar inside header */
+.nav-bar {
+    width: 100%;
+    background: #ffd700; /* Brighter yellow for the nav bar */
+    text-align: center;
+    padding: 12px 0;
+    position: relative; /* Adjust to stay inside the header */
+    bottom: 0;
+    border-radius: 10px;
+}
+
+.nav-bar ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.nav-bar ul li a {
+    text-decoration: none;
+    font-weight: bold;
+    color: #222;
+    padding: 10px 20px;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+}
+
+.nav-bar ul li a:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* Other elements like cards, graph containers, etc. */
+.card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 70px 50px 30px 50px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 600px;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card p {
+    font-size: 1.3rem;
+    margin: 15px 0;
+}
+
+.label {
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.value {
+    font-size: 1.5rem;
+    color: #fff;
+}
+
+
+.cheatsheet {
+    margin-top: 50px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 20px 40px;
+    border-radius: 15px;
+    min-width: 300px;
+    max-width: 500px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Menu button */
+.menu-button {
+    margin-top: 20px;
+    padding: 12px 25px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    background-color: #ffd700;
+    color: #222;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+}
+
+.menu-button:hover {
+    background-color: #ffea00;
+    transform: scale(1.08);
+}
+
+.graph-container {
+    margin-top: 30px;
+    width: 90%;
+    max-width: 800px;
+    height: 400px;
+    background-color: #fff;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+    padding: 20px;
+    font-size: 0.9rem;
+    color: #eee;
+}
+
+/* Adjusting page container to allow for the header */
+.page-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 120px; /* Start content below the header */
+    gap: 20px;
+}
+
+/* Side menus fixed to viewport */
+.side-menu {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 15px;
+    width: 200px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+    color: #fff;
+    position: fixed;
+    top: 120px; /* Start below header */
+    bottom: 0;
+    height: calc(100% - 120px);
+    z-index: 1000;
+    overflow-y: auto;
+}
+.side-menu h3 {
+    margin-top: 80px;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    padding-bottom: 5px;
+}
+
+.side-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.side-menu ul li {
+    margin: 8px 0;
+}
+
+.side-menu ul li a {
+    color: #ffd700;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s ease;
+}
+
+.side-menu ul li a:hover {
+    color: #fff;
+}
+
+/* Left menu fixed to left edge */
+.left-menu {
+    left: 0;
+}
+
+/* Right menu fixed to right edge */
+.right-menu {
+    right: 0;
+}
+
+/* Main content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: 220px;
+    margin-right: 220px;
+    margin-top: 20px;
+}
+
+/* Adjust layout for small screens */
+@media screen and (max-width: 1024px) {
+    .page-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    .side-menu {
+        width: 80%;
+        max-width: none;
+        position: relative;
+        top: auto;
+    }
+}
+@media screen and (max-width: 768px) {
+    .nav-bar ul {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .card {
+        padding: 20px 30px;
+    }
+    .graph-container {
+        height: 300px;
+    }
+}

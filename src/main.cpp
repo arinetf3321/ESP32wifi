@@ -9,11 +9,11 @@ const char* ssid = "VIP Authur 2";
 const char* password = "0774560547";
 
 // Define static IP configuration (adjust to your Wi-Fi subnet)
-IPAddress local_IP(192, 168, 0, 121);  // <-- pick unused IP in 192.168.0.x
-IPAddress gateway(192, 168, 0, 1);      // <-- your Wi-Fi router
-IPAddress subnet(255, 255, 255, 0);  // <-- typical subnet mask
-IPAddress primaryDNS(8, 8, 8, 8);    // optional
-IPAddress secondaryDNS(8, 8, 4, 4);  // optional
+//IPAddress local_IP(192, 168, 17, 150);  // <-- pick unused IP in 192.168.0.x
+//IPAddress gateway(192, 168, 16, 1);      // <-- your Wi-Fi router
+//IPAddress subnet(255, 255, 254, 0);  // <-- typical subnet mask
+//IPAddress primaryDNS(8, 8, 8, 8);    // optional
+//IPAddress secondaryDNS(8, 8, 4, 4);  // optional
 
 // Initialize servers
 WiFiServer tcpServer(5000);      // For Python client
@@ -40,19 +40,38 @@ unsigned long pulseTime;
 unsigned long returnTime;
 unsigned long roundTripTime;
 
+// TCP Client
+WiFiClient tcpClient; // global
+const char* FLASK_IP = "192.168.17.133"; // Replace with your Flask PC IP
+const int FLASK_TCP_PORT = 5001;
+
 // Number of sensor positions (10x10 grid)
 const int gridSize = 10;
 int sensorGrid[gridSize][gridSize];  // A 2D array to represent sensor positions
 
-// Function to serve the root page with dynamic values
-void handleRoot() {
-  // Respond with sensor data when accessed
-  String htmlContent = "<html><body>"; 
-  htmlContent += "<h1>ESP32 Sensor Data</h1>"; 
-  htmlContent += "<p><strong>Optical Density (OD): </strong>" + String(OD, 4) + "</p>"; 
-  htmlContent += "<p><strong>PWM Duty Cycle: </strong>" + String(dutyCycle) + "</p>"; 
-  htmlContent += "</body></html>"; 
-  httpServer.send(200, "text/html", htmlContent);
+void handleSensorData() {
+  String json = "{";
+  json += "\"od\":" + String(OD, 4) + ",";
+  json += "\"pwm\":" + String(dutyCycle) + ",";
+  json += "\"raw\":\"" + String(analogRead(photodiodePin)) + "\"";
+  json += "}";
+  httpServer.send(200, "application/json", json);
+}
+
+// Send data to Flask TCP server
+void sendToFlask() {
+  if (!tcpClient.connected()) {
+    if (!tcpClient.connect(FLASK_IP, FLASK_TCP_PORT)) {
+      Serial.println("Failed to connect to Flask TCP server");
+      return;
+    } else {
+      Serial.println("Connected to Flask TCP server!");
+    }
+  }
+
+  // Send OD, PWM, and raw photodiode value
+  tcpClient.printf("OD:%.4f,PWM:%d\n,RAW:%d\n", OD, dutyCycle, analogRead(photodiodePin));
+  //tcpClient.printf("%d\n", analogRead(photodiodePin));
 }
 
 void setup() {
@@ -65,13 +84,9 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("System started...");
-  
-  // ---- WiFi Setup ----
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-    Serial.println("⚠ Static IP Failed to configure");
-  }
-  
+
   WiFi.begin(ssid, password); 
+  Serial.print("Connecting to Wi-Fi");
   unsigned long startAttemptTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) { 
     Serial.print(".");
@@ -86,7 +101,8 @@ void setup() {
   Serial.print("ESP32 IP Address: "); 
   Serial.println(WiFi.localIP()); 
   tcpServer.begin();  // Start TCP server for Python client
-  httpServer.on("/", handleRoot);  // HTTP server root
+  //httpServer.on("/", handleRoot);  // HTTP server root
+  httpServer.on("/sensor-data", handleSensorData);  // JSON endpoint
   httpServer.begin();  // Start WebServer for browser
   Serial.println("Server started on port 5000");
   Serial.println("HTTP server started on port 80");
@@ -148,14 +164,12 @@ void loop() {
     float dutyPercent = (dutyCycle / 255.0) * 100.0;
 	//float dutyPercent = (OD / maxOD) * 100.0;
     if (dutyPercent > 100.0) dutyPercent = 100.0;
+    
+    // Handle HTTP server
+    httpServer.handleClient();
+
+    delay(50); // small non-blocking delay	
 	
-	// --- TCP Client ---
-    WiFiClient tcpClient = tcpServer.available();
-    if (tcpClient && tcpClient.connected()) {
-	  tcpClient.printf("OD:%.4f,PWM:%d\n", OD, dutyCycle);
-	  tcpClient.printf("%d\n", photodiodeValue); // send as a line
-      
-    }
     // Print grid sensor values
     for (int x = 0; x < gridSize; x++) {
       for (int y = 0; y < gridSize; y++) {
@@ -200,6 +214,8 @@ void loop() {
 		Serial.printf("%.1f%%\n", dutyPercent, 1); // 1 decimal place
 		Serial.printf("%d\n", photodiodeValue);
 		
+		// Send to Flask
+        sendToFlask();
 		
 		// ---- SEND DATA OVER WIFI ----
         if (tcpClient) {
