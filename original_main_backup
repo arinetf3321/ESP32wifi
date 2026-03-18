@@ -3,10 +3,17 @@
 #include <WebServer.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-
+ 
 // ================== WIFI SETTINGS ==================
 const char* ssid = "VIP Authur 2"; 
 const char* password = "0774560547";
+
+// Define static IP configuration (adjust to your Wi-Fi subnet)
+//IPAddress local_IP(192, 168, 17, 150);  // <-- pick unused IP in 192.168.0.x
+//IPAddress gateway(192, 168, 16, 1);      // <-- your Wi-Fi router
+//IPAddress subnet(255, 255, 254, 0);  // <-- typical subnet mask
+//IPAddress primaryDNS(8, 8, 8, 8);    // optional
+//IPAddress secondaryDNS(8, 8, 4, 4);  // optional
 
 // Initialize servers
 WiFiServer tcpServer(5000);      // For Python client
@@ -38,10 +45,10 @@ WiFiClient tcpClient; // global
 const char* FLASK_IP = "192.168.17.133"; // Replace with your Flask PC IP
 const int FLASK_TCP_PORT = 5001;
 
-// Single sensor setup
-float sensorValue = 0.0;  // Single sensor value
+// Number of sensor positions (10x10 grid)
+const int gridSize = 10;
+int sensorGrid[gridSize][gridSize];  // A 2D array to represent sensor positions
 
-// Function to handle sensor data as JSON (for web server)
 void handleSensorData() {
   String json = "{";
   json += "\"od\":" + String(OD, 4) + ",";
@@ -64,6 +71,7 @@ void sendToFlask() {
 
   // Send OD, PWM, and raw photodiode value
   tcpClient.printf("OD:%.4f,PWM:%d\n,RAW:%d\n", OD, dutyCycle, analogRead(photodiodePin));
+  //tcpClient.printf("%d\n", analogRead(photodiodePin));
 }
 
 void setup() {
@@ -85,18 +93,19 @@ void setup() {
     delay(500);   
   }
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Failed to connect!");
+  Serial.println("Failed to connect!");
   } else {
-    Serial.println("\nConnected!"); 
-    Serial.print("Connected to SSID: "); 
-    Serial.println(WiFi.SSID());
-    Serial.print("ESP32 IP Address: "); 
-    Serial.println(WiFi.localIP()); 
-    tcpServer.begin();  // Start TCP server for Python client
-    httpServer.on("/sensor-data", handleSensorData);  // JSON endpoint
-    httpServer.begin();  // Start WebServer for browser
-    Serial.println("Server started on port 5000");
-    Serial.println("HTTP server started on port 80");
+  Serial.println("\nConnected!"); 
+  Serial.print("Connected to SSID: "); 
+  Serial.println(WiFi.SSID());
+  Serial.print("ESP32 IP Address: "); 
+  Serial.println(WiFi.localIP()); 
+  tcpServer.begin();  // Start TCP server for Python client
+  //httpServer.on("/", handleRoot);  // HTTP server root
+  httpServer.on("/sensor-data", handleSensorData);  // JSON endpoint
+  httpServer.begin();  // Start WebServer for browser
+  Serial.println("Server started on port 5000");
+  Serial.println("HTTP server started on port 80");
   }
 
   // Initialize I2C on custom pins
@@ -106,6 +115,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
 }
+
 
 void loop() {
   // Blink status LED
@@ -127,6 +137,10 @@ void loop() {
       lcd.print("No reflection");
       lcd.setCursor(0, 1);
       lcd.print("within 1s ⚠");
+	  
+	  // Mirror to Serial Monitor 
+	  Serial.printf("LCD: No reflection within 1s ⚠\n");
+	  
       delay(1500);
       return;
     }
@@ -137,48 +151,84 @@ void loop() {
     returnTime = micros();
     roundTripTime = returnTime - pulseTime;
 
-    // Calculate optical density (OD)
-    float I0 = 4095.0;
-    float I = (float)photodiodeValue;
+    // Calculate optical density (OD,1023.0)
+    float I0 = 4095.0;  
+    float I = (float)photodiodeValue;  
     OD = log(I0 / I);
-
-    // For single sensor, store the value
-    sensorValue = OD;  // Storing value of the single sensor
 
     // Map OD to PWM duty cycle (scale 0.0–1.0 OD → 0–255)
     dutyCycle = constrain((int)(OD * 255), 0, 255);
     ledcWrite(pwmChannel, dutyCycle);
-
+	
+	// Convert to percentage
+    float dutyPercent = (dutyCycle / 255.0) * 100.0;
+	//float dutyPercent = (OD / maxOD) * 100.0;
+    if (dutyPercent > 100.0) dutyPercent = 100.0;
+    
     // Handle HTTP server
     httpServer.handleClient();
 
-    delay(50); // small non-blocking delay
+    delay(50); // small non-blocking delay	
+	
+    // Print grid sensor values
+    for (int x = 0; x < gridSize; x++) {
+      for (int y = 0; y < gridSize; y++) {
+        // Serial output
+        Serial.print("photo diode sensor reading: ");
+        Serial.print(x);
+        Serial.print("_");
+        Serial.print(y);
+        Serial.print(": ");
+        Serial.print(OD, 4);
+        Serial.print("V");
+        Serial.print(", PWM=");
+        Serial.println(dutyCycle);
+		
+		//percent
+		Serial.print(dutyPercent, 1); // 1 decimal place
+        Serial.println("%");
 
-    // Print sensor reading for single sensor
-    Serial.print("Sensor reading: ");
-    Serial.print("OD: ");
-    Serial.print(OD, 4);
-    Serial.print("V, PWM=");
-    Serial.println(dutyCycle);
+        // LCD output (scroll vertically)
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Sensor ");
+        lcd.print(x);
+        lcd.print("_");
+        lcd.print(y);
 
-    // LCD output for a single sensor
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Sensor NIR");
-    lcd.setCursor(0, 1);
-    lcd.print("Volts:");
-    lcd.print(OD, 2);
-    lcd.print(" PWM:");
-    lcd.print(dutyCycle);
-    lcd.print(" %");
+        lcd.setCursor(0, 1);
+        lcd.print("Volts:");
+        lcd.print(OD, 2);
+        lcd.print(" PWM:");
+        lcd.print(dutyCycle);
+		
+		//percent
+		//lcd.print(dutyPercent, 1); // 1 decimal place
+		//lcd.print("%");
+		lcd.print(String(dutyPercent, 1) + "%");
+       
+	    // Mirror to Serial Monitor 
+		Serial.printf("LCD: Sensor %d_%d | Volts: %.2f | PWM: %d\n", x, y, OD, dutyCycle);
+		
+		// percent
+		Serial.printf("%.1f%%\n", dutyPercent, 1); // 1 decimal place
+		Serial.printf("%d\n", photodiodeValue);
+		
+		// Send to Flask
+        sendToFlask();
+		
+		// ---- SEND DATA OVER WIFI ----
+        if (tcpClient) {
+          if (tcpClient.connected()) {
+			tcpClient.println(String("Volts: ") + String(OD, 4) + ",PWM:" + String(dutyCycle));	
+            tcpClient.println(String(photodiodeValue)); // send as a line			
 
-    // Mirror to Serial Monitor
-    Serial.printf("LCD: Volts: %.2f | PWM: %d\n", OD, dutyCycle);
-
-    // Send data to Flask
-    sendToFlask();
-
-    delay(500);  // Adjust the delay for sensor reading
+          }
+        }
+		
+        delay(500); // adjust scroll speed
+      }
+    }
   }
   httpServer.handleClient();  // Handle incoming HTTP requests (from browser)
   delay(500);

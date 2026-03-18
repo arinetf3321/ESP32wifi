@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify
 import socket
 import threading
 import time
-
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import os
@@ -100,7 +100,9 @@ def handle_client(client_socket):
 
                 # Update raw
                 with data_lock:
-                    latest_raw = data.splitlines()[-1].strip()
+                    #latest_raw = data.splitlines()[-1].strip()
+                    #latest_raw = data.splitlines()[-1].replace("RAW:", "").strip()
+                    latest_raw = data.splitlines()[-1].replace("RAW:", "").replace(",", "").strip()
 
                 # Extract OD
                 od_value = None
