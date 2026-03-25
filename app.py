@@ -134,59 +134,81 @@ def handle_client(client_socket):
                 break
                 
                 
-# Modify the plotting thread to save the figure as an image
 def satugraph():
+    matplotlib.use("Agg")  # Non-GUI backend
     time_data = []
     spo2_data = []
+    raw_data = []
+    od_data = []
     start_time = time.time()
 
-    matplotlib.use("Agg")  # Force non-GUI backend
-    #plt.ion()
-    fig, ax = plt.subplots(figsize=(10,5))
-    line, = ax.plot(time_data, spo2_data, 'r-', label="Oxygen Saturation (%)")
+    # Create a single figure
+    fig, ax = plt.subplots(figsize=(12, 6))
 
+    # Lines
+    line_spo2, = ax.plot([], [], 'r-', label="SpO₂ (%)")
+    line_raw, = ax.plot([], [], 'g-', label=" Photodiode Sensor")
+    line_od, = ax.plot([], [], 'b-', label="Volts")
+
+    # Axis labels and title
     ax.set_xlabel("Time (s)")
-    ax.set_ylabel("SpO₂ (%)")
-    ax.set_title("Cerebral Oxygenation Over Time")
-
-    # Zoom in vertically for high sensitivity
-    ax.set_ylim(49.5, 50.5)
-    ax.axhline(50, color='blue', linestyle='--', linewidth=1, label="50% reference")
-
-    ax.grid(which='major', color='gray', linestyle='-', linewidth=0.8)
-    ax.grid(which='minor', color='lightgray', linestyle=':', linewidth=0.5)
-
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
-    ax.xaxis.set_minor_locator(ticker.MultipleLocator(1))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.01))
-
+    ax.set_ylabel("Values")
+    ax.set_title("Output Over Time")
+    ax.grid(True)
     ax.legend(loc='upper right')
 
+    # Optional: draw a reference line for SpO₂ ~50%
+    ax.axhline(50, color='blue', linestyle='--', linewidth=1, label="50% reference")
+
     def od_to_spo2(od):
+        # placeholder conversion
         return max(50, min(100, 100 - (od - 0.1) * 55))
 
     while True:
         with data_lock:
             od_value = latest_od
-        spo2 = od_to_spo2(od_value)
+            raw_value = latest_raw
+
+        # Convert raw to float safely
+        try:
+            raw_value_float = float(raw_value)
+        except:
+            raw_value_float = 0.0
+
         current_time = time.time() - start_time
+        spo2 = od_to_spo2(od_value)
+
+        # Append new data
         time_data.append(current_time)
         spo2_data.append(spo2)
+        raw_data.append(raw_value_float)
+        od_data.append(od_value)
 
+        # Keep only last 200 points
         time_data = time_data[-200:]
         spo2_data = spo2_data[-200:]
+        raw_data = raw_data[-200:]
+        od_data = od_data[-200:]
 
-        line.set_xdata(time_data)
-        line.set_ydata(spo2_data)
+        # Update lines
+        line_spo2.set_xdata(time_data)
+        line_spo2.set_ydata(spo2_data)
+        line_raw.set_xdata(time_data)
+        line_raw.set_ydata(raw_data)
+        line_od.set_xdata(time_data)
+        line_od.set_ydata(od_data)
+
+        # Update X-axis limits
         ax.set_xlim(max(0, current_time - 20), current_time + 1)
 
-        # Save plot as an image              
-        
+        # Update Y-axis automatically to fit all data
+        all_data = spo2_data + raw_data + od_data
+        ax.set_ylim(min(all_data) - 5, max(all_data) + 5)
+
+        # Save figure
+        plt.tight_layout()
         plt.savefig(os.path.join(STATIC_FOLDER, 'graph.png'), bbox_inches='tight')
-        #plt.savefig(r'C:\Users\strainee\Documents\platformIO\Projects\ESP32\static\graph.png', bbox_inches='tight')
-        #plt.savefig('/path/to/static/graph.png', bbox_inches='tight')
-        plt.pause(0.05)              
+        plt.pause(0.05)
 
 if __name__ == "__main__":
     # Start TCP server thread

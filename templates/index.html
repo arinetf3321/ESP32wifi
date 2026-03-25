@@ -29,7 +29,7 @@
     <div class="page-container">
         <!-- Left Menu -->
         <aside class="side-menu left-menu">
-            <h3>Left Menu</h3>
+            <h3></h3>
             <ul>
                 <li><a href="#">Sensor</a></li>
                 <li><a href="#">Start Stop NIR</a></li>
@@ -48,7 +48,7 @@
 
             <!-- Graph placeholder -->
             <div class="graph-container" id="graphContainer">             
-				<img id="liveGraph" src="{{ url_for('static', filename='graph.png') }}?{{ time.time() }}" alt="Live Graph" style="width: 100%; height: auto;">
+				<img id="liveGraph" src="{{ url_for('static', filename='graph.png') }}?t={{ timestamp }}" alt="Live Graph" style="width: 100%; height: auto;">
             </div>
 
             <!-- Menu button -->
@@ -75,7 +75,7 @@
 
         <!-- Right Menu -->
         <aside class="side-menu right-menu">
-            <h3>Right Menu</h3>
+            <h3></h3>
             <ul>
                 <li><a href="#">Graphs</a></li>
                 <li><a href="#">Logs</a></li>

@@ -22,7 +22,7 @@ const int photodiodePin = 34;   // Analog pin for photodiode input
 
 // PWM setup
 const int pwmChannel = 0;       // PWM channel
-const int pwmFreq = 5000;       // 5 kHz frequency
+const int pwmFreq = 15000;       // 15 kHz frequency
 const int pwmResolution = 8;    // 8-bit resolution (0–255 duty)
 
 float OD = 0.0;
@@ -35,7 +35,7 @@ unsigned long roundTripTime;
 
 // TCP Client
 WiFiClient tcpClient; // global
-const char* FLASK_IP = "192.168.17.133"; // Replace with your Flask PC IP
+const char* FLASK_IP = "192.168.17.46"; // Replace with your Flask PC IP
 const int FLASK_TCP_PORT = 5001;
 
 // Single sensor setup
@@ -110,7 +110,7 @@ void setup() {
 void loop() {
   // Blink status LED
   digitalWrite(blinkLedPin, HIGH);
-  delay(2000);
+  delay(1000);
   digitalWrite(blinkLedPin, LOW);
   delay(20);
 
@@ -146,7 +146,10 @@ void loop() {
     sensorValue = OD;  // Storing value of the single sensor
 
     // Map OD to PWM duty cycle (scale 0.0–1.0 OD → 0–255)
-    dutyCycle = constrain((int)(OD * 255), 0, 255);
+    //dutyCycle = constrain((int)(OD * 255), 0, 255);
+	dutyCycle = map(OD, 0, 2.6, 0, 255); // Mapping OD to PWM values (adjust the OD range as needed)
+	//int pwmDutyCycle = (millis() % 255);  // Create a sine-wave-like modulation
+	//dutyCycle = (millis() % 255);  // Create a sine-wave-like modulation
     ledcWrite(pwmChannel, dutyCycle);
 
     // Handle HTTP server
