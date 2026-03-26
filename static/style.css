@@ -182,6 +182,7 @@ footer {
     padding: 20px;
     font-size: 0.9rem;
     color: #eee;
+	text-align: center;
 }
 
 /* Adjusting page container to allow for the header */
@@ -262,6 +263,7 @@ footer {
 }
 
 /* Adjust layout for small screens */
+/*
 @media screen and (max-width: 1024px) {
     .page-container {
         flex-direction: column;
@@ -285,4 +287,13 @@ footer {
     .graph-container {
         height: 300px;
     }
+}
+*/
+.scale-wrapper {
+    transform-origin: top center;
+    transform: scale(min(1, calc(100vw / 1200)));
+}
+
+body {
+    overflow-x: hidden;
 }

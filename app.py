@@ -51,9 +51,7 @@ def index():
 @app.route("/sensor-data")
 def sensor_data():
     with data_lock:
-        # Keep only the first line of latest_raw and strip CR/LF
-        #latest_raw_clean = latest_raw.splitlines()[0].replace("\r","").strip()
-        # Print current sensor values to terminal
+
         #print(f"[Sensor Data Requested] od={latest_od}, pwm={latest_pwm}, raw='{latest_raw}'", flush=True)
         return jsonify({
             "od": latest_od,
@@ -146,7 +144,7 @@ def satugraph():
     fig, ax = plt.subplots(figsize=(12, 6))
 
     # Lines
-    line_spo2, = ax.plot([], [], 'r-', label="SpO₂ (%)")
+    line_spo2, = ax.plot([], [], 'r-', label="O₂ Saturation (%)")
     line_raw, = ax.plot([], [], 'g-', label=" Photodiode Sensor")
     line_od, = ax.plot([], [], 'b-', label="Volts")
 
@@ -155,14 +153,14 @@ def satugraph():
     ax.set_ylabel("Values")
     ax.set_title("Output Over Time")
     ax.grid(True)
-    ax.legend(loc='upper right')
+    ax.legend(loc='upper right', bbox_to_anchor=(1, 0.6))
 
-    # Optional: draw a reference line for SpO₂ ~50%
-    ax.axhline(50, color='blue', linestyle='--', linewidth=1, label="50% reference")
+    # Optional: draw a reference line for SpO₂ ~100%
+    ax.axhline(95, color='blue', linestyle='--', linewidth=1, label="100% reference")
 
     def od_to_spo2(od):
         # placeholder conversion
-        return max(50, min(100, 100 - (od - 0.1) * 55))
+        return max(90, min(100, 100 - (od - 0.1) * 98))
 
     while True:
         with data_lock:

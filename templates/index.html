@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="scale-wrapper">
     <!-- Header -->
     <header class="site-header">
         <div class="header-content">
@@ -41,7 +42,7 @@
         <main class="main-content">
             <!-- Sensor data card -->
             <div class="card">
-                <p><span class="label">Output:</span> <span class="value" id="rawValue">{{ raw }}</span></p>
+                <p><span class="label">Photodiode Output:</span> <span class="value" id="rawValue">{{ raw }}</span></p>
                 <p><span class="label">Volts (V):</span> <span class="value" id="odValue">{{ od }}</span></p>
                 <p><span class="label">PWM Duty Cycle:</span> <span class="value" id="pwmValue">{{ pwm }}</span></p>
             </div>
@@ -144,5 +145,6 @@
     }
     setInterval(refreshGraph, 2000);
 </script>
+</div>
 </body>
 </html>
