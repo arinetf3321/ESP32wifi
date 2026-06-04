@@ -1,0 +1,182 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ================== WIFI SETTINGS ==================
+const char* ssid = "VIP Authur 2"; 
+const char* password = "0774560547";
+
+// Initialize servers
+WiFiServer tcpServer(5000);
+WebServer httpServer(80);
+
+// LCD setup
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+
+// Pin definitions
+const int blinkLedPin = 14;
+const int nirLedPin = 23;
+const int photodiodePin = 34;
+#define SWITCH_PIN 2   // Rocker switch
+
+// PWM setup
+const int pwmChannel = 0;
+const int pwmFreq = 15000;
+const int pwmResolution = 8;
+
+float OD = 0.0;
+int dutyCycle = 0;
+
+// Timing variables
+unsigned long pulseTime;
+unsigned long returnTime;
+unsigned long roundTripTime;
+
+// TCP Client
+WiFiClient tcpClient;
+const char* FLASK_IP = "192.168.17.210";
+const int FLASK_TCP_PORT = 5001;
+
+// Sensor value
+float sensorValue = 0.0;
+
+// ================= FUNCTIONS =================
+void handleSensorData() {
+  String json = "{";
+  json += "\"od\":" + String(OD, 4) + ",";
+  json += "\"pwm\":" + String(dutyCycle) + ",";
+  json += "\"raw\":\"" + String(analogRead(photodiodePin)) + "\"";
+  json += "}";
+  httpServer.send(200, "application/json", json);
+}
+
+void sendToFlask() {
+  if (!tcpClient.connected()) {
+    if (!tcpClient.connect(FLASK_IP, FLASK_TCP_PORT)) {
+      Serial.println("Failed to connect to Flask TCP server");
+      return;
+    }
+  }
+  tcpClient.printf("OD:%.4f,PWM:%d\n,RAW:%d\n", OD, dutyCycle, analogRead(photodiodePin));
+}
+
+// ================= SETUP =================
+void setup() {
+  pinMode(blinkLedPin, OUTPUT);
+  pinMode(photodiodePin, INPUT);
+
+  // SWITCH SETUP
+  pinMode(SWITCH_PIN, INPUT_PULLDOWN);
+
+  // PWM setup
+  ledcSetup(pwmChannel, pwmFreq, pwmResolution);
+  ledcAttachPin(nirLedPin, pwmChannel);
+
+  Serial.begin(115200);
+  Serial.println("System started...");
+
+  WiFi.begin(ssid, password); 
+  Serial.print("Connecting to Wi-Fi");
+
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 30000) { 
+    Serial.print(".");
+    delay(500);   
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConnected!");
+    Serial.println(WiFi.localIP());
+    tcpServer.begin();
+    httpServer.on("/sensor-data", handleSensorData);
+    httpServer.begin();
+  }
+
+  Wire.begin(25, 26);
+  lcd.init();
+  lcd.backlight();
+}
+
+// ================= LOOP =================
+void loop() {
+
+  //  READ SWITCH STATE
+  int switchState = digitalRead(SWITCH_PIN);
+
+  if (switchState == LOW) {
+    // SYSTEM OFF
+    ledcWrite(pwmChannel, 0);  // Turn off NIR LED
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SYSTEM OFF");
+
+    Serial.println("System OFF (Switch)");
+
+    delay(500);
+    return; // Skip rest of loop
+  }
+
+  //  SYSTEM ON
+
+  // Blink LED
+  digitalWrite(blinkLedPin, HIGH);
+  delay(1000);
+  digitalWrite(blinkLedPin, LOW);
+  delay(20);
+
+  pulseTime = micros();
+
+  unsigned long startWait = millis();
+  while (analogRead(photodiodePin) < 100) {
+    if (millis() - startWait > 1000) {
+      Serial.println(" No reflection");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("No reflection");
+      delay(1000);
+      return;
+    }
+  }
+
+  int photodiodeValue = analogRead(photodiodePin);
+
+  if (photodiodeValue >= 100) {
+    returnTime = micros();
+    roundTripTime = returnTime - pulseTime;
+
+    float I0 = 4095.0;
+    float I = (float)photodiodeValue;
+    OD = log(I0 / I);
+
+    sensorValue = OD;
+
+    dutyCycle = map(OD, 0, 2.6, 0, 255);
+    ledcWrite(pwmChannel, dutyCycle);
+
+    httpServer.handleClient();
+
+    Serial.print("OD: ");
+    Serial.print(OD, 4);
+    Serial.print(" PWM=");
+    Serial.println(dutyCycle);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Sensor NIR");
+    lcd.setCursor(0, 1);
+    lcd.print("OD:");
+    lcd.print(OD, 2);
+    lcd.setCursor(0, 2);
+    lcd.print("PWM:");
+    lcd.print(dutyCycle);
+
+    sendToFlask();
+
+    delay(500);
+  }
+
+  httpServer.handleClient();
+}

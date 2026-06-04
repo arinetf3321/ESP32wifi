@@ -35,7 +35,7 @@ unsigned long roundTripTime;
 
 // TCP Client
 WiFiClient tcpClient; // global
-const char* FLASK_IP = "192.168.16.178"; // Replace with your Flask PC IP
+const char* FLASK_IP = "192.168.17.63"; // Replace with your Flask PC IP
 const int FLASK_TCP_PORT = 5001;
 
 // Single sensor setup
@@ -169,6 +169,7 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print("Volts:");
     lcd.print(OD, 2);
+	lcd.setCursor(0, 2);
     lcd.print(" PWM:");
     lcd.print(dutyCycle);
     lcd.print(" %");
