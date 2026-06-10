@@ -34,7 +34,7 @@
             <ul>
                 <li><a href="#">Sensor</a></li>
                 <li><a href="#">Start Stop NIR</a></li>
-                <li><a href="#">System info</a></li>
+                <li><a href="#" onclick="showSystemInfo()">System Info</a></li>
             </ul>
         </aside>
 
@@ -51,6 +51,23 @@
             <div class="graph-container" id="graphContainer">             
 				<img id="liveGraph" src="{{ url_for('static', filename='graph.png') }}?t={{ timestamp }}" alt="Live Graph" style="width: 100%; height: auto;">
             </div>
+			
+			<!-- System Info Table -->
+            <div id="systemInfoContainer" style="display:none; margin-top:20px;">
+                <h2>System Information</h2>
+                <table id="systemTable" border="1" width="100%">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Volts</th>
+                            <th>PWM</th>
+                            <th>Photodiode</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>		
 
             <!-- Menu button -->
             <button class="menu-button" onclick="toggleCheatSheet()">Show/Hide HTTP Status Codes</button>
@@ -108,6 +125,34 @@
             cheatSheet.style.display = 'none';
         }, CLOSE_DELAY_MS);
     });
+    // NEW: System Info functions
+    async function showSystemInfo() {
+        document.getElementById("systemInfoContainer").style.display = "block";
+        loadSystemInfo();
+    }
+
+    async function loadSystemInfo() {
+        try {
+            const response = await fetch("/system-info");
+            const data = await response.json();
+            let tbody = document.querySelector("#systemTable tbody");
+            tbody.innerHTML = "";
+            data.forEach(row => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${row.id}</td>
+                        <td>${row.od}</td>
+                        <td>${row.pwm}</td>
+                        <td>${row.raw}</td>
+                        <td>${row.created_at}</td>
+                    </tr>
+                `;
+            });
+        } catch(err) {
+            console.error(err);
+        }
+    }	
+
 // Update sensor data every 2 seconds
     async function updateSensorData() {
       try {

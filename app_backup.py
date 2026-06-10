@@ -7,17 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import os
 
-import mysql.connector
-
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="MySQL@Kampala#2026!",
-    database="sensor_db"
-)
-
-cursor = db.cursor()
-
 app = Flask(__name__)
 
 # Shared data
@@ -75,39 +64,6 @@ def sensor_data():
 def status_log():
     return jsonify(status_history[-10:])  # last 10 responses
 
-@app.route("/system-info")
-def system_info():
-
-    try:
-        cursor.execute("""
-            SELECT id,
-                   od_value,
-                   pwm_value,
-                   raw_value,
-                   created_at
-            FROM sensor_readings
-            ORDER BY id DESC
-            LIMIT 50
-        """)
-
-        rows = cursor.fetchall()
-
-        data = []
-
-        for row in rows:
-            data.append({
-                "id": row[0],
-                "od": row[1],
-                "pwm": row[2],
-                "raw": row[3],
-                "created_at": row[4].strftime("%Y-%m-%d %H:%M:%S")
-            })
-
-        return jsonify(data)
-
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
 # Track all HTTP responses
 @app.after_request
 def track_status_code(response):
@@ -129,24 +85,6 @@ def tcp_server():
         client_socket, addr = server_socket.accept()
         print(f"ESP32 connected from {addr}")
         threading.Thread(target=handle_client, args=(client_socket,), daemon=True).start()
-
-
-def save_to_mysql(od, pwm, raw):
-    try:
-        sql = """
-        INSERT INTO sensor_readings
-        (od_value, pwm_value, raw_value)
-        VALUES (%s, %s, %s)
-        """
-
-        values = (od, pwm, raw)
-
-        cursor.execute(sql, values)
-        db.commit()
-
-    except Exception as e:
-        print("[MYSQL ERROR]:", e)
-
         
 def handle_client(client_socket):
     global latest_od, latest_pwm, latest_raw
@@ -181,39 +119,19 @@ def handle_client(client_socket):
                         pwm_value = int(data.split("PWM:")[1].split(",")[0].strip())
                     except: pass
 
-                #updating database
+                # Update globals
                 with data_lock:
                     if od_value is not None:
                         latest_od = od_value
-
                     if pwm_value is not None:
                         latest_pwm = pwm_value
-
-                    current_od = latest_od
-                    current_pwm = latest_pwm
-                    current_raw = latest_raw
-
-                    print(f"[TCP Updated] od={current_od}, pwm={current_pwm}, raw='{current_raw}'", flush=True)
-
-                # Save to MySQL
-                save_to_mysql(
-                    current_od,
-                    current_pwm,
-                    current_raw
-                )
-                # Update globals
-                #with data_lock:
-                    #if od_value is not None:
-                        #latest_od = od_value
-                    #if pwm_value is not None:
-                        #latest_pwm = pwm_value
-                    #print(f"[TCP Updated] od={latest_od}, pwm={latest_pwm}, raw='{latest_raw}'", flush=True)
+                    print(f"[TCP Updated] od={latest_od}, pwm={latest_pwm}, raw='{latest_raw}'", flush=True)
 
             except Exception as e:
                 print("[TCP Connection Error]:", e, flush=True)
                 break
-              
-               
+                
+                
 def satugraph():
     matplotlib.use("Agg")  # Non-GUI backend
     time_data = []
