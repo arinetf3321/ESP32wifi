@@ -176,6 +176,43 @@ h1 {
     text-align: center;
 }
 
+/* System Information Table */
+#systemTable {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    color: black;
+}
+
+#systemTable th,
+#systemTable td {
+    border: 1px solid black;
+    padding: 4px;
+    text-align: center;
+}
+
+#systemTable th {
+    background-color: #ffd700;
+}
+
+/* System Information Table Containers */
+#systemInfoContainer {
+    width: 90%;
+    max-width: 1000px;
+    margin-top: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    color: black;
+    overflow: hidden; /* hide overflowing content outside container */
+}
+
+#systemTableContainer {
+    max-height: 400px;  /* Adjust as needed */
+    overflow-y: auto;   /* Enables vertical scrolling */
+    border: 1px solid black;
+}
+
 /* Footer */
 footer {
     margin-top: auto;

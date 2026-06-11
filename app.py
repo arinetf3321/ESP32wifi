@@ -79,6 +79,13 @@ def status_log():
 def system_info():
 
     try:
+        db = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="MySQL@Kampala#2026!",
+            database="sensor_db"
+        )
+        cursor = db.cursor()      
         cursor.execute("""
             SELECT id,
                    od_value,
@@ -133,6 +140,15 @@ def tcp_server():
 
 def save_to_mysql(od, pwm, raw):
     try:
+        db = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="MySQL@Kampala#2026!",
+            database="sensor_db"
+        )
+
+        cursor = db.cursor()
+      
         sql = """
         INSERT INTO sensor_readings
         (od_value, pwm_value, raw_value)
@@ -201,13 +217,7 @@ def handle_client(client_socket):
                     current_pwm,
                     current_raw
                 )
-                # Update globals
-                #with data_lock:
-                    #if od_value is not None:
-                        #latest_od = od_value
-                    #if pwm_value is not None:
-                        #latest_pwm = pwm_value
-                    #print(f"[TCP Updated] od={latest_od}, pwm={latest_pwm}, raw='{latest_raw}'", flush=True)
+
 
             except Exception as e:
                 print("[TCP Connection Error]:", e, flush=True)
