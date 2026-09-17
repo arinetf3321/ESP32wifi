@@ -1,0 +1,19 @@
+#define SWITCH_PIN 2   // GPIO where switch is connected
+
+void setup() {
+  pinMode(SWITCH_PIN, INPUT_PULLDOWN);  // Enable internal pull-down
+  Serial.begin(115200);
+}
+
+void loop() {
+  int state = digitalRead(SWITCH_PIN);
+
+  if (state == HIGH) {
+    Serial.println("Switch ON (Closed)");
+  } else {
+    Serial.println("Switch OFF (Open)");
+  }
+
+  delay(200);
+}
+
